@@ -35,6 +35,31 @@ const FORWARDED_FIELDS = [
   'bot_id',
 ] as const
 
+const basicAuth = (config: ProxyConfig): string =>
+  `Basic ${Buffer.from(`${config.clientId}:${config.clientSecret}`).toString('base64')}`
+
+export async function revokeWithNotion(
+  token: string,
+  config: ProxyConfig,
+  fetchFn: typeof fetch,
+): Promise<{ status: number; body: Record<string, unknown> }> {
+  const res = await fetchFn('https://api.notion.com/v1/oauth/revoke', {
+    method: 'POST',
+    headers: {
+      Authorization: basicAuth(config),
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify({ token }),
+  })
+  if (res.ok) return { status: 200, body: { revoked: true } }
+  const data = (await res.json().catch(() => ({}))) as Record<string, unknown>
+  return {
+    status: res.status === 401 ? 401 : 400,
+    body: { error: data['error'] ?? data['code'] ?? 'revoke_failed' },
+  }
+}
+
 export async function exchangeWithNotion(
   request: TokenRequest,
   config: ProxyConfig & { redirectUri: string },
@@ -48,7 +73,7 @@ export async function exchangeWithNotion(
   const res = await fetchFn('https://api.notion.com/v1/oauth/token', {
     method: 'POST',
     headers: {
-      Authorization: `Basic ${Buffer.from(`${config.clientId}:${config.clientSecret}`).toString('base64')}`,
+      Authorization: basicAuth(config),
       'Content-Type': 'application/json',
       Accept: 'application/json',
     },

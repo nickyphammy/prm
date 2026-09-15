@@ -11,6 +11,7 @@ export const GOOGLE_SCOPES = [
 const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 const TOKEN_URL = 'https://oauth2.googleapis.com/token'
 const USERINFO_URL = 'https://openidconnect.googleapis.com/v1/userinfo'
+const REVOKE_URL = 'https://oauth2.googleapis.com/revoke'
 
 /** Refresh this long before expiry so a request never races the deadline. */
 const EXPIRY_SKEW_MS = 60_000
@@ -133,6 +134,23 @@ export async function fetchGoogleProfile(
   fetchFn: FetchFn = fetch,
 ): Promise<{ sub: string; email: string }> {
   return fetchJson(USERINFO_URL, { accessToken, fetchFn })
+}
+
+/**
+ * Revokes the grant so the app disappears from the user's Google account access list.
+ * Revoking the refresh token also invalidates its access tokens.
+ */
+export async function revokeGoogleToken(token: string, fetchFn: FetchFn = fetch): Promise<void> {
+  const res = await fetchFn(REVOKE_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ token }),
+  })
+  if (res.ok) return
+  const text = await res.text()
+  // invalid_token means it was already revoked or expired: the outcome the user wants.
+  if (res.status === 400 && text.includes('invalid_token')) return
+  throw new HttpError(res.status, text, REVOKE_URL)
 }
 
 /** Scopes the user may have unchecked on the consent screen. */

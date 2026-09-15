@@ -1,8 +1,9 @@
+import { useState } from 'react'
 import { AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react'
 import type { AccountSummary, ProviderId } from '@prm/shared'
 import { ProviderIcon } from '@/components/ProviderIcon'
 import { Button } from '@/components/ui/button'
-import { cancelConnect, useAccounts, useConnect, useDisconnect } from '@/lib/api'
+import { cancelConnect, openExternal, useAccounts, useConnect, useDisconnect } from '@/lib/api'
 import { formatAgo } from '@/lib/format'
 
 const PROVIDERS: Array<{ id: ProviderId; name: string; description: string }> = [
@@ -14,8 +15,22 @@ const PROVIDERS: Array<{ id: ProviderId; name: string; description: string }> = 
   },
 ]
 
-function AccountRow({ account, onReconnect }: { account: AccountSummary; onReconnect(): void }) {
-  const disconnect = useDisconnect()
+const REVOKE_PAGES: Record<ProviderId, string> = {
+  google: 'https://myaccount.google.com/connections',
+  notion: 'https://www.notion.so/profile/integrations',
+}
+
+function AccountRow({
+  account,
+  onReconnect,
+  onDisconnect,
+  disconnecting,
+}: {
+  account: AccountSummary
+  onReconnect(): void
+  onDisconnect(): void
+  disconnecting: boolean
+}) {
   return (
     <li className="flex items-center gap-3 py-2.5 pl-11">
       <div className="min-w-0 flex-1">
@@ -43,16 +58,18 @@ function AccountRow({ account, onReconnect }: { account: AccountSummary; onRecon
       <Button
         size="sm"
         variant="danger"
-        disabled={disconnect.isPending}
+        disabled={disconnecting}
         onClick={() => {
           if (
-            confirm(`Disconnect ${account.label}? Cached data from this account will be removed.`)
+            confirm(
+              `Disconnect ${account.label}? PRM Dashboard's access will be revoked and cached data from this account removed.`,
+            )
           ) {
-            disconnect.mutate(account.id)
+            onDisconnect()
           }
         }}
       >
-        Disconnect
+        {disconnecting ? 'Disconnecting…' : 'Disconnect'}
       </Button>
     </li>
   )
@@ -66,7 +83,23 @@ function ProviderCard({
   accounts: AccountSummary[]
 }) {
   const connect = useConnect()
+  const disconnect = useDisconnect()
   const cancelled = connect.error?.message === 'Connection cancelled.'
+  // Shown after the row disappears, when access couldn't be revoked at the provider.
+  const [revokeNotice, setRevokeNotice] = useState<string | null>(null)
+
+  const disconnectAccount = (account: AccountSummary) => {
+    setRevokeNotice(null)
+    disconnect.mutate(account.id, {
+      onSuccess: ({ revoked }) => {
+        if (!revoked) {
+          setRevokeNotice(
+            `${account.label} was removed from this computer, but PRM Dashboard couldn't revoke its access at ${provider.name}. You can remove it from your ${provider.name} settings.`,
+          )
+        }
+      },
+    })
+  }
 
   return (
     <section className="rounded-xl border border-border bg-surface p-4">
@@ -98,10 +131,31 @@ function ProviderCard({
       {connect.error && !cancelled && (
         <p className="mt-3 pl-11 text-xs text-danger">{connect.error.message}</p>
       )}
+      {disconnect.error && (
+        <p className="mt-3 pl-11 text-xs text-danger">{disconnect.error.message}</p>
+      )}
+      {revokeNotice && (
+        <p className="mt-3 pl-11 text-xs text-warning">
+          {revokeNotice}{' '}
+          <button
+            type="button"
+            className="underline"
+            onClick={() => openExternal(REVOKE_PAGES[provider.id])}
+          >
+            Open {provider.name} settings
+          </button>
+        </p>
+      )}
       {accounts.length > 0 && (
         <ul className="mt-2 divide-y divide-border border-t border-border">
           {accounts.map((a) => (
-            <AccountRow key={a.id} account={a} onReconnect={() => connect.mutate(provider.id)} />
+            <AccountRow
+              key={a.id}
+              account={a}
+              onReconnect={() => connect.mutate(provider.id)}
+              onDisconnect={() => disconnectAccount(a)}
+              disconnecting={disconnect.isPending && disconnect.variables === a.id}
+            />
           ))}
         </ul>
       )}
@@ -115,8 +169,8 @@ export function Settings() {
     <div className="mx-auto max-w-2xl px-6 py-6">
       <h1 className="text-lg font-semibold">Connections</h1>
       <p className="mt-1 mb-5 text-sm text-fg-muted">
-        Sign-in happens in your browser. Tokens are encrypted with your system keychain and your
-        data never leaves this computer.
+        Sign-in happens in your browser. Tokens and cached data are encrypted with a key held in
+        your system keychain, and your data never leaves this computer.
       </p>
       <div className="space-y-3">
         {PROVIDERS.map((p) => (

@@ -20,6 +20,16 @@ async function toResult<T>(work: () => Promise<T>): Promise<Result<T>> {
   }
 }
 
+const REVOKE_TIMEOUT_MS = 10_000
+
+function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
+  let timer: NodeJS.Timeout
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`Timed out after ${ms / 1000}s`)), ms)
+  })
+  return Promise.race([work, timeout]).finally(() => clearTimeout(timer))
+}
+
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(`Invalid IPC arguments: ${message}`)
 }
@@ -63,8 +73,20 @@ export function registerIpc(deps: {
 
     disconnect: (accountId) =>
       toResult(async () => {
+        assert(typeof accountId === 'string', 'accountId')
+        let revoked = false
+        try {
+          const account = store.getAccount<never>(accountId)
+          if (account) {
+            await withTimeout(adapters[account.provider].revoke(account.tokens), REVOKE_TIMEOUT_MS)
+            revoked = true
+          }
+        } catch (err) {
+          // Offline, or the stored tokens are unreadable. Removing local data still matters more.
+          console.error(`[disconnect] could not revoke account ${accountId}:`, err)
+        }
         store.deleteAccount(accountId)
-        // Access tokens stay valid until they expire; the user can revoke fully from their Google/Notion settings.
+        return { revoked }
       }),
 
     listEvents: async (range) => {

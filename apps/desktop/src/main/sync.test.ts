@@ -13,7 +13,12 @@ const codec: TokenCodec = {
 
 function setup(sync: ProviderAdapter['sync']) {
   const store = new Store(openDb(':memory:'), codec)
-  const adapter: ProviderAdapter = { id: 'google', connect: vi.fn(), sync: vi.fn(sync) }
+  const adapter: ProviderAdapter = {
+    id: 'google',
+    connect: vi.fn(),
+    sync: vi.fn(sync),
+    revoke: vi.fn(),
+  }
   const events = { dataUpdated: vi.fn(), stateChanged: vi.fn() }
   const adapters = { google: adapter, notion: adapter } as Record<
     ProviderId,

@@ -27,4 +27,6 @@ export interface ProviderAdapter<Tokens = unknown> {
   id: ProviderId
   connect(ctx: ConnectContext): Promise<ConnectResult>
   sync(ctx: SyncContext<Tokens>): Promise<void>
+  /** Revokes access at the provider so the app no longer appears in the user's connected apps. */
+  revoke(tokens: Tokens): Promise<void>
 }

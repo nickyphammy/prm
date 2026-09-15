@@ -8,6 +8,7 @@ import {
   encodeNotionState,
   exchangeNotionCode,
   refreshNotionTokens,
+  revokeNotionToken,
   type NotionTokens,
 } from '../oauth/notion'
 import { randomToken } from '../oauth/pkce'
@@ -77,6 +78,9 @@ export const notionAdapter: ProviderAdapter<NotionTokens> = {
       loopback.close()
     }
   },
+
+  revoke: (tokens) =>
+    revokeNotionToken({ proxyUrl: env.authProxyUrl(), token: tokens.accessToken }),
 
   async sync({ account, store }) {
     await withNotionClient(account, store, async (client) => {

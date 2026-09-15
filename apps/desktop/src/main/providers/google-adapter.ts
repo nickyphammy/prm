@@ -6,6 +6,7 @@ import {
   exchangeGoogleCode,
   fetchGoogleProfile,
   missingGoogleScopes,
+  revokeGoogleToken,
   type GoogleTokens,
 } from '../oauth/google'
 import { createPkcePair, randomToken } from '../oauth/pkce'
@@ -61,6 +62,8 @@ export const googleAdapter: ProviderAdapter<GoogleTokens> = {
       loopback.close()
     }
   },
+
+  revoke: (tokens) => revokeGoogleToken(tokens.refreshToken),
 
   async sync({ account, store, now }) {
     const client = { clientId: env.googleClientId(), clientSecret: env.googleClientSecret() }

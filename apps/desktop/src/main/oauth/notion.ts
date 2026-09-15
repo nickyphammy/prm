@@ -75,6 +75,22 @@ export function exchangeNotionCode(
   return callProxy(opts.proxyUrl, { code: opts.code }, fetchFn)
 }
 
+/** Revokes the token through the proxy (Notion requires the client secret for revocation too). */
+export async function revokeNotionToken(
+  opts: { proxyUrl: string; token: string },
+  fetchFn: FetchFn = fetch,
+): Promise<void> {
+  const url = `${opts.proxyUrl}/api/notion/revoke`
+  const res = await fetchFn(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: opts.token }),
+  })
+  // 401 = token already invalid, which is the outcome the user wants.
+  if (res.ok || res.status === 401) return
+  throw new HttpError(res.status, await res.text(), url)
+}
+
 export function refreshNotionTokens(
   opts: { proxyUrl: string; refreshToken: string },
   fetchFn: FetchFn = fetch,

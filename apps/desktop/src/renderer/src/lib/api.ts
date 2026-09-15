@@ -89,6 +89,7 @@ export function useDisconnect() {
     mutationFn: async (accountId: string) => {
       const result = await api.disconnect(accountId)
       if (!result.ok) throw new Error(result.error)
+      return result.value
     },
     onSettled: () => {
       void client.invalidateQueries({ queryKey: DATA })

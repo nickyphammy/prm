@@ -12,6 +12,7 @@ import type {
   Widget,
   WidgetConfigMap,
 } from '@prm/shared'
+import { DataCipher } from './data-cipher'
 import { schema, type Db } from './db'
 
 const { accounts, items, widgets } = schema
@@ -57,10 +58,51 @@ function toSummary(row: AccountRow): AccountSummary {
 }
 
 export class Store {
+  private readonly cipher: DataCipher
+
   constructor(
     private readonly db: Db,
     private readonly codec: TokenCodec,
-  ) {}
+  ) {
+    this.cipher = this.loadDataCipher()
+  }
+
+  /**
+   * The data key encrypts cached items and is itself stored encrypted by the
+   * OS keychain (via the token codec). If the keychain entry was reset, the old
+   * cache is unreadable, so it's discarded and a fresh key is made.
+   */
+  private loadDataCipher(): DataCipher {
+    const row = this.db.get<{ value: string }>(sql`SELECT value FROM meta WHERE key = 'data_key'`)
+    if (row) {
+      try {
+        const key = this.codec.decrypt<string>(Buffer.from(row.value, 'base64'))
+        return new DataCipher(Buffer.from(key, 'base64'))
+      } catch (err) {
+        console.error('[store] cached data key unreadable; discarding cache', err)
+      }
+    }
+    const key = DataCipher.generateKey()
+    const wrapped = this.codec.encrypt(key.toString('base64')).toString('base64')
+    this.db.transaction((tx) => {
+      tx.delete(items).run()
+      tx.run(sql`INSERT OR REPLACE INTO meta (key, value) VALUES ('data_key', ${wrapped})`)
+    })
+    return new DataCipher(key)
+  }
+
+  /** Decrypt cached rows, skipping any that fail authentication (corrupted or tampered). */
+  private decodeItems<T>(rows: Array<{ payload: Buffer }>): T[] {
+    const out: T[] = []
+    for (const { payload } of rows) {
+      try {
+        out.push(JSON.parse(this.cipher.decrypt(payload)) as T)
+      } catch {
+        // Skipped; the next sync rewrites this partition.
+      }
+    }
+    return out
+  }
 
   // ── Accounts ────────────────────────────────────────────────────────────
 
@@ -160,7 +202,7 @@ export class Store {
         groupKey,
         externalId: item.id,
         sortAt: sortKey(item),
-        payload: JSON.stringify(item),
+        payload: this.cipher.encrypt(JSON.stringify(item)),
       }))
       // Chunk to stay well under SQLite's bound-parameter limit.
       for (let i = 0; i < rows.length; i += 500) {
@@ -185,35 +227,35 @@ export class Store {
   }
 
   listEvents(range: { from: number; to: number }): NormalizedEvent[] {
-    return this.db
+    const rows = this.db
       .select({ payload: items.payload })
       .from(items)
       .where(and(eq(items.kind, 'event'), lte(items.sortAt, range.to)))
       .orderBy(asc(items.sortAt))
       .all()
-      .map((r) => JSON.parse(r.payload) as NormalizedEvent)
-      .filter((e) => e.end > range.from)
+    return this.decodeItems<NormalizedEvent>(rows).filter((e) => e.end > range.from)
   }
 
   listEmails(filter: WidgetConfigMap['inbox']['filter']): NormalizedEmail[] {
-    return this.db
+    const rows = this.db
       .select({ payload: items.payload })
       .from(items)
       .where(eq(items.kind, 'email'))
       .orderBy(desc(items.sortAt))
       .all()
-      .map((r) => JSON.parse(r.payload) as NormalizedEmail)
-      .filter((e) => filter === 'all' || (filter === 'unread' ? e.unread : e.important))
+    return this.decodeItems<NormalizedEmail>(rows).filter(
+      (e) => filter === 'all' || (filter === 'unread' ? e.unread : e.important),
+    )
   }
 
   listNotionItems(dataSourceId: string | null): NotionItem[] {
-    return this.db
+    const rows = this.db
       .select({ payload: items.payload })
       .from(items)
       .where(and(eq(items.kind, 'notion'), eq(items.groupKey, dataSourceId ?? '')))
       .orderBy(desc(items.sortAt))
       .all()
-      .map((r) => JSON.parse(r.payload) as NotionItem)
+    return this.decodeItems<NotionItem>(rows)
   }
 
   // ── Widgets ─────────────────────────────────────────────────────────────

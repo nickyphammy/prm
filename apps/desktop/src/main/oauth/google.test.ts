@@ -5,6 +5,7 @@ import {
   ensureFreshGoogleTokens,
   exchangeGoogleCode,
   missingGoogleScopes,
+  revokeGoogleToken,
   type GoogleTokens,
 } from './google'
 import { createPkcePair } from './pkce'
@@ -98,6 +99,26 @@ describe('exchangeGoogleCode', () => {
         fetchFn as typeof fetch,
       ),
     ).rejects.toThrow('refresh token')
+  })
+})
+
+describe('revokeGoogleToken', () => {
+  it('posts the token to the revoke endpoint', async () => {
+    const fetchFn = tokenResponse({})
+    await revokeGoogleToken('refresh', fetchFn as typeof fetch)
+    expect(String(fetchFn.mock.calls[0]![0])).toBe('https://oauth2.googleapis.com/revoke')
+    expect(new URLSearchParams(String(fetchFn.mock.calls[0]![1]!.body)).get('token')).toBe(
+      'refresh',
+    )
+  })
+
+  it('treats an already-invalid token as revoked, and surfaces other failures', async () => {
+    await expect(
+      revokeGoogleToken('t', tokenResponse({ error: 'invalid_token' }, 400) as typeof fetch),
+    ).resolves.toBeUndefined()
+    await expect(
+      revokeGoogleToken('t', tokenResponse({ error: 'server' }, 503) as typeof fetch),
+    ).rejects.toThrow('HTTP 503')
   })
 })
 

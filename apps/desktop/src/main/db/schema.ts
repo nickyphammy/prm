@@ -39,7 +39,8 @@ export const items = sqliteTable(
     groupKey: text('group_key').notNull().default(''),
     /** Event start, email received time, or Notion edit time (epoch ms). */
     sortAt: integer('sort_at').notNull(),
-    payload: text('payload').notNull(),
+    /** JSON of the item, encrypted with the store's DataCipher. */
+    payload: blob('payload', { mode: 'buffer' }).notNull(),
   },
   (t) => [
     primaryKey({ columns: [t.accountId, t.kind, t.groupKey, t.externalId] }),

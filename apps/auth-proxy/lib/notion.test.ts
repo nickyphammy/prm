@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { GET } from '../api/notion/callback'
+import { POST as REVOKE } from '../api/notion/revoke'
 import { POST } from '../api/notion/token'
-import { exchangeWithNotion, parseLoopbackPort, readConfig } from './notion'
+import { exchangeWithNotion, parseLoopbackPort, readConfig, revokeWithNotion } from './notion'
 
 const NONCE = 'abcdefghijklmnopqrstuvwxyz012345'
 
@@ -24,7 +25,11 @@ describe('parseLoopbackPort', () => {
 describe('readConfig', () => {
   it('trims whitespace picked up when pasting into a dashboard', () => {
     expect(
-      readConfig({ NOTION_CLIENT_ID: ' id\n', NOTION_CLIENT_SECRET: 'secret ', NOTION_REDIRECT_URI: ' ' }),
+      readConfig({
+        NOTION_CLIENT_ID: ' id\n',
+        NOTION_CLIENT_SECRET: 'secret ',
+        NOTION_REDIRECT_URI: ' ',
+      }),
     ).toEqual({ clientId: 'id', clientSecret: 'secret', redirectUri: undefined })
   })
 })
@@ -122,6 +127,45 @@ describe('exchangeWithNotion', () => {
       fetchFn as typeof fetch,
     )
     expect(result).toEqual({ status: 400, body: { error: 'invalid_grant' } })
+  })
+})
+
+describe('revokeWithNotion', () => {
+  const config = { clientId: 'id', clientSecret: 'secret' }
+
+  it('posts the token with basic auth', async () => {
+    const fetchFn = vi.fn(
+      async (_url: string | URL | Request, _init?: RequestInit) =>
+        new Response('{}', { status: 200 }),
+    )
+    const result = await revokeWithNotion('ntn_tok', config, fetchFn as typeof fetch)
+    expect(result).toEqual({ status: 200, body: { revoked: true } })
+    expect(String(fetchFn.mock.calls[0]![0])).toBe('https://api.notion.com/v1/oauth/revoke')
+    expect(JSON.parse(String(fetchFn.mock.calls[0]![1]!.body))).toEqual({ token: 'ntn_tok' })
+  })
+
+  it('reports failures without echoing details', async () => {
+    const fetchFn = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ code: 'unauthorized', message: 'x' }), { status: 401 }),
+    )
+    expect(await revokeWithNotion('t', config, fetchFn as typeof fetch)).toEqual({
+      status: 401,
+      body: { error: 'unauthorized' },
+    })
+  })
+})
+
+describe('POST /api/notion/revoke', () => {
+  afterEach(() => vi.unstubAllEnvs())
+
+  it('requires a token', async () => {
+    vi.stubEnv('NOTION_CLIENT_ID', 'id')
+    vi.stubEnv('NOTION_CLIENT_SECRET', 'secret')
+    const res = await REVOKE(
+      new Request('https://proxy.test/api/notion/revoke', { method: 'POST', body: '{}' }),
+    )
+    expect(res.status).toBe(400)
   })
 })
 

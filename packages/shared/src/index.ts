@@ -102,7 +102,8 @@ export interface DesktopApi {
   connect(provider: ProviderId): Promise<Result<AccountSummary>>
   /** Abandons an in-progress connect(), e.g. when the user closed the browser tab. */
   cancelConnect(): Promise<void>
-  disconnect(accountId: string): Promise<Result<void>>
+  /** Revokes access at the provider (best effort), then deletes the account and its cached data. */
+  disconnect(accountId: string): Promise<Result<{ revoked: boolean }>>
 
   listEvents(range: { from: number; to: number }): Promise<NormalizedEvent[]>
   listEmails(filter: WidgetConfigMap['inbox']['filter']): Promise<NormalizedEmail[]>

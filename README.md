@@ -77,16 +77,36 @@ Local data lives in `~/Library/Application Support/PRM Dashboard/prm.db` on macO
 
 ## Security model
 
-- The renderer runs with `sandbox`, `contextIsolation` and no Node integration, under a strict CSP. It can only call the typed methods in `packages/shared`.
-- Tokens are encrypted with Electron `safeStorage` and never cross IPC. `openExternal` accepts only `https://` URLs.
-- The auth proxy forwards only token fields: it drops the owner's email and profile. It redirects only to `127.0.0.1`, and it stores nothing.
+- **Renderer:** runs with `sandbox`, `contextIsolation` and no Node integration, under a strict CSP. It can only call the typed methods in `packages/shared`.
+  - Packaged builds serve the UI from `app://renderer` (`src/main/app-protocol.ts`), not `file://`.
+- **Tokens:** encrypted with Electron `safeStorage` (OS keychain). They never cross IPC.
+- **Cached data:** emails, events and Notion items are encrypted with AES-256-GCM (`src/main/data-cipher.ts`). The data key is itself wrapped by the keychain.
+  - Deleted rows are zeroed (`secure_delete`).
+  - Still plaintext: account labels (email address or workspace name), item IDs and timestamps.
+- **Disconnect:** revokes access at Google, and at Notion via the proxy, before deleting local data. If revocation fails (for example offline), the UI links to the provider's settings page.
+- **Electron fuses** (`electron-builder.yml`): these are off, so the packaged app ignores them:
+  - `ELECTRON_RUN_AS_NODE`
+  - `NODE_OPTIONS`
+  - `--inspect`
+
+  These are on:
+  - ASAR integrity validation
+  - Load app only from ASAR
+
+  Local builds are ad-hoc signed, because flipping fuses rewrites the binary and invalidates Electron's original signature.
+
+- **`openExternal`:** accepts only `https://` URLs.
+- **Auth proxy:**
+  - Forwards only token fields, dropping the owner's email and profile.
+  - Redirects only to `127.0.0.1` and stores nothing.
+  - Rate-limits each IP to 20 requests per 10 minutes. The limit is in memory per function instance; add a Vercel Firewall rule for a hard global limit.
 
 ## Before selling
 
 - **Google verification.** `gmail.readonly` is a restricted scope, so a public release needs Google's OAuth verification (privacy policy, homepage, demo video). Because data stays on the device, check whether the CASA security assessment applies to you.
-- **Code signing.** Apple Developer ID + notarization (set `mac.identity` in `electron-builder.yml`), and a Windows code-signing certificate.
+- **Code signing.** Replace the ad-hoc `mac.identity: '-'` in `electron-builder.yml` with an Apple Developer ID and add notarization. Windows needs a code-signing certificate.
 - **Auto-updates.** `electron-updater` with GitHub Releases.
 - **Licensing.** Lemon Squeezy or Keygen license keys, validated through the auth proxy.
 - **Branding.** Replace the lettermark provider icons and add an app icon in `apps/desktop/build/`.
-- **Proxy hardening.** Add rate limiting to the auth proxy.
+- **Proxy hardening.** Add a Vercel Firewall rate-limit rule on `/api/notion/*` to back up the in-memory limiter.
 - **Outlook.** Microsoft Graph (Outlook mail and calendar) plugs in as another `ProviderAdapter` (`apps/desktop/src/main/providers/types.ts`).

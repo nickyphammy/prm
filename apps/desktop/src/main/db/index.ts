@@ -9,6 +9,8 @@ export function openDb(filename: string): Db {
   const sqlite = new Database(filename)
   sqlite.pragma('journal_mode = WAL')
   sqlite.pragma('foreign_keys = ON')
+  // Overwrite deleted rows with zeros so disconnected accounts don't linger in free pages.
+  sqlite.pragma('secure_delete = ON')
   migrate(sqlite)
   return drizzle(sqlite, { schema })
 }

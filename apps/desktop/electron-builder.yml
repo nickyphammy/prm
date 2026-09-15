@@ -12,8 +12,9 @@ mac:
   category: public.app-category.productivity
   target:
     - dmg
-  # Signing + notarization are configured later, before selling (needs an Apple Developer ID).
-  identity: null
+  # Ad-hoc signature ("-"): flipping Electron fuses rewrites the binary, and macOS kills binaries whose
+  # signature no longer matches. Replace with a Developer ID (plus notarization) before distributing.
+  identity: '-'
 win:
   target:
     - nsis
@@ -22,3 +23,15 @@ linux:
     - AppImage
 # better-sqlite3 ships Node-API prebuilds that load in Electron as-is, so no native rebuild is needed.
 npmRebuild: false
+# Electron fuses are flipped in the binary at package time, so they can't be undone by env vars or flags.
+# They stop someone who already has code running on the machine from reusing this app (and its keychain
+# access) as a generic Node runtime or debugger target.
+electronFuses:
+  runAsNode: false # ignore ELECTRON_RUN_AS_NODE
+  enableNodeOptionsEnvironmentVariable: false # ignore NODE_OPTIONS / NODE_EXTRA_CA_CERTS
+  enableNodeCliInspectArguments: false # ignore --inspect and SIGUSR1
+  enableCookieEncryption: true
+  enableEmbeddedAsarIntegrityValidation: true # refuse a modified app.asar
+  onlyLoadAppFromAsar: true # never fall back to an unpacked app/ folder
+  grantFileProtocolExtraPrivileges: false # renderer is served from app:// instead (src/main/app-protocol.ts)
+  loadBrowserProcessSpecificV8Snapshot: false
