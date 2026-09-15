@@ -1,0 +1,30 @@
+{
+  "name": "prm",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w apps/desktop",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.10.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "prettier": "^3.6.0",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.70.0",
+    "vitest": "^4.1.11"
+  },
+  "allowScripts": {
+    "electron@44.4.0": true,
+    "esbuild@0.25.12": true,
+    "esbuild@0.28.2": true
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "name": "@prm/desktop",
+  "productName": "PRM Dashboard",
+  "version": "0.1.0",
+  "description": "Personal dashboard for your calendar, email and Notion",
+  "private": true,
+  "main": "./out/main/index.js",
+  "author": "Nick Pham",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "typecheck": "tsc -p tsconfig.node.json && tsc -p tsconfig.web.json",
+    "build:mac": "electron-vite build && electron-builder --mac",
+    "build:win": "electron-vite build && electron-builder --win",
+    "build:unpack": "electron-vite build && electron-builder --dir"
+  },
+  "dependencies": {
+    "better-sqlite3": "^13.0.3"
+  },
+  "devDependencies": {
+    "@notionhq/client": "^5.26.0",
+    "@prm/shared": "*",
+    "@tailwindcss/vite": "^4.3.3",
+    "@tanstack/react-query": "^5.102.8",
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^24.13.4",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^5.2.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "drizzle-orm": "^0.45.2",
+    "electron": "44.4.0",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^5.0.0",
+    "lucide-react": "^1.46.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-grid-layout": "^2.2.4",
+    "tailwind-merge": "^3.7.0",
+    "tailwindcss": "^4.3.3",
+    "vite": "^7.3.6"
+  }
+}

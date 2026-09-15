@@ -1,0 +1,92 @@
+@import 'tailwindcss';
+@import 'react-grid-layout/css/styles.css';
+@import 'react-resizable/css/styles.css';
+
+@theme {
+  --color-bg: #f7f7f5;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f1f1ef;
+  --color-border: #e6e6e3;
+  --color-fg: #1f1f1e;
+  --color-fg-muted: #6b6b68;
+  --color-fg-subtle: #9b9b97;
+  --color-accent: #2f6fed;
+  --color-accent-fg: #ffffff;
+  --color-danger: #d4442f;
+  --color-warning: #b7791f;
+  --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #191919;
+    --color-surface: #222222;
+    --color-surface-muted: #2a2a2a;
+    --color-border: #333333;
+    --color-fg: #ececea;
+    --color-fg-muted: #a3a3a0;
+    --color-fg-subtle: #737370;
+    --color-accent: #5b8cf5;
+    --color-danger: #ef6a55;
+    --color-warning: #e0a84a;
+  }
+}
+
+:root {
+  /* Native controls and scrollbars follow the OS theme. */
+  color-scheme: light dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--color-fg) 18%, transparent);
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in srgb, var(--color-fg) 30%, transparent);
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+/* Title bar area that can drag the window (macOS hiddenInset). Interactive children opt out. */
+.app-drag {
+  -webkit-app-region: drag;
+}
+.app-drag button,
+.app-drag a,
+.app-drag input,
+.app-drag select {
+  -webkit-app-region: no-drag;
+}
+
+.react-grid-item.react-grid-placeholder {
+  background: var(--color-accent);
+  opacity: 0.12;
+  border-radius: 12px;
+}
+
+.react-grid-item > .react-resizable-handle::after {
+  border-color: var(--color-fg-subtle);
+}
