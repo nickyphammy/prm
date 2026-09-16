@@ -8,9 +8,16 @@ apps/desktop      Electron app
   src/main        Node side: OAuth, provider API calls, sync scheduler, SQLite (owns every secret)
   src/preload     Typed, minimal bridge exposed to the UI as window.api
   src/renderer    React UI: dashboard grid, widgets, connections page
-apps/auth-proxy   Two Vercel functions that hold the Notion client secret (stateless, stores nothing)
+apps/auth-proxy   Vercel functions that hold the Notion client secret (stateless, stores nothing)
 packages/shared   Types shared by main, preload and renderer (the IPC contract)
+docs/             Architecture, security, setup, development and release docs
 ```
+
+## Documentation
+
+- **Understand the system:** [Architecture](docs/architecture.md), [authentication flows](docs/auth-flows.md), [data and sync](docs/data-and-sync.md), [security](docs/security.md).
+- **Work on it:** [setup and troubleshooting](docs/setup.md), [development guide](docs/development.md), [release guide](docs/release.md).
+- **Context:** [design decisions](docs/decisions.md), [roadmap](docs/roadmap.md), [changelog](CHANGELOG.md).
 
 ## How data flows
 
